@@ -3,8 +3,10 @@ using Dotmim.Sync.DatabaseStringParsers;
 using Dotmim.Sync.SqlServer.Builders;
 using Dotmim.Sync.SqlServer.Manager;
 using Microsoft.Data.SqlClient;
+using System;
 using System.Data;
 using System.Data.Common;
+using System.Diagnostics;
 using System.Linq;
 using System.Text;
 
@@ -480,142 +482,209 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
         }
 
         /// <inheritdoc/>
-        //------------------------------------------------------------------
-        // Select changes command
-        //------------------------------------------------------------------
         protected override SqlCommand BuildSelectInitializedChangesCommand(DbConnection connection, DbTransaction transaction, SyncFilter filter = null)
         {
+            // Initialize SQL command with timestamp parameter
             var sqlCommand = new SqlCommand();
+            sqlCommand.Parameters.Add(new SqlParameter("@sync_min_timestamp", SqlDbType.BigInt) { Value = "NULL", IsNullable = true });
 
-            var pTimestamp = new SqlParameter("@sync_min_timestamp", SqlDbType.BigInt) { Value = "NULL", IsNullable = true };
-            sqlCommand.Parameters.Add(pTimestamp);
-
-            // Add filter parameters
+            // Add any filter parameters (e.g., TenantId for multi-tenant scenarios)
             if (filter != null)
                 this.CreateFilterParameters(sqlCommand, filter);
 
-            var stringBuilder = new StringBuilder(string.Empty);
-            stringBuilder.AppendLine(";WITH ");
-            stringBuilder.AppendLine($"  {this.SqlObjectNames.TrackingTableQuotedShortName} AS (");
-            stringBuilder.Append("\tSELECT ");
-            foreach (var pkColumn in this.TableDescription.GetPrimaryKeysColumns())
+            var sb = new StringBuilder();
+            sb.AppendLine("SET NOCOUNT ON;"); // Reduce network traffic by suppressing row count messages
+            sb.AppendLine();
+
+            // ====================================================================
+            // Helper method: Builds the SELECT column list for a query
+            // Parameters:
+            //   - tableAlias: The alias to use for table references (e.g., "base", "side")
+            //   - includeCoalesce: If true, wraps primary keys in COALESCE for tombstone handling
+            // ====================================================================
+            string BuildSelectColumns(string tableAlias, bool includeCoalesce = false)
             {
-                var columnParser = new ObjectParser(pkColumn.ColumnName, SqlObjectNames.LeftQuote, SqlObjectNames.RightQuote);
-                stringBuilder.Append($"[CT].{columnParser.QuotedShortName}, ");
+                var columns = new StringBuilder();
+                var comma = "  ";
+
+                // Iterate through all mutable columns (excludes computed/identity columns)
+                foreach (var col in this.TableDescription.GetMutableColumns(false, true))
+                {
+                    var colName = new ObjectParser(col.ColumnName, SqlObjectNames.LeftQuote, SqlObjectNames.RightQuote).QuotedShortName;
+                    var isPrimaryKey = this.TableDescription.PrimaryKeys.Any(pk => col.ColumnName.Equals(pk, SyncGlobalization.DataSourceStringComparison));
+
+                    // For incremental sync, primary keys need COALESCE to handle deleted rows (tombstones)
+                    // Non-PK columns come from [base] table only (NULL for tombstones)
+                    if (includeCoalesce && isPrimaryKey)
+                        columns.AppendLine($"\t{comma}COALESCE([base].{colName}, [side].{colName}) AS {colName}");
+                    else
+                        columns.AppendLine($"\t{comma}[{tableAlias}].{colName}");
+
+                    comma = ", ";
+                }
+
+                return columns.ToString();
             }
 
-            stringBuilder.AppendLine();
-            stringBuilder.AppendLine("\tCAST([CT].[SYS_CHANGE_CONTEXT] as uniqueidentifier) AS [sync_update_scope_id], ");
-            stringBuilder.AppendLine("\t[CT].[SYS_CHANGE_VERSION] as [sync_timestamp],");
-            stringBuilder.AppendLine("\tCASE WHEN [CT].[SYS_CHANGE_OPERATION] = 'D' THEN 1 ELSE 0 END AS [sync_row_is_tombstone]");
-            stringBuilder.AppendLine($"\tFROM CHANGETABLE(CHANGES {this.SqlObjectNames.TableQuotedFullName}, @sync_min_timestamp) AS [CT]");
-            stringBuilder.AppendLine("\t)");
+            // ====================================================================
+            // FULL SYNC PATH - Used when @sync_min_timestamp IS NULL
+            // ====================================================================
+            // This path is optimized for initial synchronization where all data
+            // needs to be transferred. It bypasses change tracking entirely for
+            // maximum performance, doing a simple SELECT from the base table.
+            // ====================================================================
 
-            // if we have a filter we may have joins that will duplicate lines
-            if (filter != null)
-                stringBuilder.AppendLine("SELECT DISTINCT ");
-            else
-                stringBuilder.AppendLine("SELECT ");
+            sb.AppendLine("IF @sync_min_timestamp IS NULL");
+            sb.AppendLine("BEGIN");
 
-            var comma = "  ";
-            foreach (var mutableColumn in this.TableDescription.GetMutableColumns(false, true))
-            {
-                var columnParser = new ObjectParser(mutableColumn.ColumnName, SqlObjectNames.LeftQuote, SqlObjectNames.RightQuote);
-                stringBuilder.AppendLine($"\t{comma}[base].{columnParser.QuotedShortName}");
-                comma = ", ";
-            }
+            // Use DISTINCT only if filters might create duplicate rows via joins
+            sb.AppendLine(filter != null ? "\tSELECT DISTINCT" : "\tSELECT");
 
-            stringBuilder.AppendLine($"\t, [side].[sync_row_is_tombstone] as [sync_row_is_tombstone]");
-            stringBuilder.AppendLine($"FROM {this.SqlObjectNames.TableQuotedFullName} [base]");
-            stringBuilder.Append($"LEFT JOIN {this.SqlObjectNames.TrackingTableQuotedShortName} [side] ");
-            stringBuilder.Append("ON ");
+            // Select all columns from the base table
+            sb.Append(BuildSelectColumns("base"));
 
-            string empty = string.Empty;
-            foreach (var pkColumn in this.TableDescription.GetPrimaryKeysColumns())
-            {
-                var columnParser = new ObjectParser(pkColumn.ColumnName, SqlObjectNames.LeftQuote, SqlObjectNames.RightQuote);
-                stringBuilder.Append($"{empty}[base].{columnParser.QuotedShortName} = [side].{columnParser.QuotedShortName}");
-                empty = " AND ";
-            }
+            // No tombstones in full sync - all rows are live data
+            sb.AppendLine("\t\t, 0 AS [sync_row_is_tombstone]");
+            sb.AppendLine($"\tFROM {this.SqlObjectNames.TableQuotedFullName} [base]");
 
-            // ----------------------------------
-            // Custom Joins
-            // ----------------------------------
-            if (filter != null)
-                stringBuilder.Append(this.CreateFilterCustomJoins(filter));
-
-            stringBuilder.AppendLine();
-            stringBuilder.AppendLine("WHERE (");
-
-            // ----------------------------------
-            // Where filters on [side]
-            // ----------------------------------
-            if (filter != null)
-            {
-                var createFilterWhereSide = this.CreateFilterWhereSide(filter, true);
-                stringBuilder.Append(createFilterWhereSide);
-
-                if (!string.IsNullOrEmpty(createFilterWhereSide))
-                    stringBuilder.AppendLine("AND ");
-            }
-
-            // ----------------------------------
-
-            // ----------------------------------
-            // Custom Where
-            // ----------------------------------
+            // Apply filters (e.g., WHERE TenantId = @TenantId)
             if (filter != null)
             {
-                var createFilterCustomWheres = this.CreateFilterCustomWheres(filter);
-                stringBuilder.Append(createFilterCustomWheres);
+                sb.AppendLine("\tWHERE (");
 
-                if (!string.IsNullOrEmpty(createFilterCustomWheres))
-                    stringBuilder.AppendLine("AND ");
+                // CreateFilterWhereSide generates conditions like "[base].[TenantId] = @TenantId"
+                sb.Append($"\t\t{this.CreateFilterWhereSide(filter, false)}");
+
+                // Add any custom WHERE conditions defined in the filter
+                var customWheres = this.CreateFilterCustomWheres(filter);
+                if (!string.IsNullOrEmpty(customWheres))
+                {
+                    sb.AppendLine();
+                    sb.AppendLine("\t\tAND");
+                    sb.Append($"\t\t{customWheres}");
+                }
+
+                sb.AppendLine();
+                sb.AppendLine("\t)");
             }
 
-            // ----------------------------------
-            stringBuilder.AppendLine("\t([side].[sync_timestamp] > @sync_min_timestamp OR @sync_min_timestamp IS NULL)");
-            stringBuilder.AppendLine(")");
-            stringBuilder.AppendLine("UNION");
-            stringBuilder.AppendLine("SELECT");
-            comma = "  ";
-            foreach (var mutableColumn in this.TableDescription.GetMutableColumns(false, true))
+            sb.AppendLine("\t;");
+            sb.AppendLine("\tRETURN;"); // Exit early - don't execute incremental sync path
+            sb.AppendLine("END");
+            sb.AppendLine();
+
+            // ====================================================================
+            // INCREMENTAL SYNC PATH - Used when @sync_min_timestamp has a value
+            // ====================================================================
+            // This path uses SQL Server Change Tracking to identify only the rows
+            // that have changed since the last sync. This is much more efficient
+            // for ongoing synchronization after the initial load.
+            // ====================================================================
+
+            // Build CTE that queries change tracking for modified rows
+            sb.AppendLine(";WITH");
+            sb.AppendLine($"  {this.SqlObjectNames.TrackingTableQuotedShortName} AS (");
+            sb.Append("\tSELECT ");
+
+            // Select primary key columns from change tracking
+            // We need PKs to join back to the base table
+            var pkColumns = this.TableDescription.GetPrimaryKeysColumns();
+            foreach (var pkCol in pkColumns)
             {
-                var columnParser = new ObjectParser(mutableColumn.ColumnName, SqlObjectNames.LeftQuote, SqlObjectNames.RightQuote);
-                var isPrimaryKey = this.TableDescription.PrimaryKeys.Any(pkey => mutableColumn.ColumnName.Equals(pkey, SyncGlobalization.DataSourceStringComparison));
-
-                if (isPrimaryKey)
-                    stringBuilder.AppendLine($"\t{comma}[side].{columnParser.QuotedShortName}");
-                else
-                    stringBuilder.AppendLine($"\t{comma}[base].{columnParser.QuotedShortName}");
-
-                comma = ", ";
+                var colName = new ObjectParser(pkCol.ColumnName, SqlObjectNames.LeftQuote, SqlObjectNames.RightQuote).QuotedShortName;
+                sb.Append($"[CT].{colName}, ");
             }
 
-            stringBuilder.AppendLine($"\t, [side].[sync_row_is_tombstone] as [sync_row_is_tombstone]");
-            stringBuilder.AppendLine($"FROM {this.SqlObjectNames.TableQuotedFullName} [base]");
+            sb.AppendLine();
 
-            // ----------------------------------
-            // Make Left Join
-            // ----------------------------------
-            stringBuilder.Append($"RIGHT JOIN {this.SqlObjectNames.TrackingTableQuotedShortName} [side] ON ");
+            // SYS_CHANGE_VERSION is the timestamp for this change
+            sb.AppendLine("\t[CT].[SYS_CHANGE_VERSION] AS [sync_timestamp],");
 
-            empty = string.Empty;
-            foreach (var pkColumn in this.TableDescription.GetPrimaryKeysColumns())
+            // SYS_CHANGE_OPERATION: 'I'=Insert, 'U'=Update, 'D'=Delete
+            // Mark deleted rows as tombstones (sync_row_is_tombstone = 1)
+            sb.AppendLine("\tCASE WHEN [CT].[SYS_CHANGE_OPERATION] = 'D' THEN 1 ELSE 0 END AS [sync_row_is_tombstone]");
+
+            // CHANGETABLE function returns all changes after the specified timestamp
+            sb.AppendLine($"\tFROM CHANGETABLE(CHANGES {this.SqlObjectNames.TableQuotedFullName}, @sync_min_timestamp) AS [CT]");
+
+            // Filter change tracking results
+            var ctWhere = new StringBuilder("\tWHERE ");
+            var hasFilter = false;
+
+            // Apply filters to change tracking if all filter parameters are primary keys
+            // This optimization pushes filtering into the change tracking query
+            if (filter != null && filter.Parameters.All(x => pkColumns.Any(y => y.ColumnName == x.Name)))
             {
-                var columnParser = new ObjectParser(pkColumn.ColumnName, SqlObjectNames.LeftQuote, SqlObjectNames.RightQuote);
-                stringBuilder.Append($"{empty}[base].{columnParser.QuotedShortName} = [side].{columnParser.QuotedShortName}");
-                empty = " AND ";
+                var filterWhere = this.CreateFilterWhereSide(filter, false)
+                    .Replace("[base]", "[CT]", StringComparison.CurrentCultureIgnoreCase); // Replace table alias
+                ctWhere.Append(filterWhere);
+                ctWhere.AppendLine();
+                ctWhere.Append("\t\tAND ");
+                hasFilter = true;
             }
 
-            stringBuilder.AppendLine();
-            stringBuilder.AppendLine("WHERE ([side].[sync_timestamp] > @sync_min_timestamp AND [side].[sync_row_is_tombstone] = 1);");
+            // Only get changes after the last sync timestamp
+            // This is the core of incremental sync efficiency
+            ctWhere.AppendLine("[CT].[SYS_CHANGE_VERSION] > @sync_min_timestamp");
+            sb.Append(ctWhere);
+            sb.AppendLine("\t)");
 
-            sqlCommand.CommandText = stringBuilder.ToString();
+            // ====================================================================
+            // Main query: Join change tracking results with base table
+            // ====================================================================
+            // Strategy: Start from the tracking CTE (small dataset) and LEFT JOIN
+            // to the base table. This handles both live rows and tombstones:
+            // - Live rows: JOIN succeeds, get full data from [base]
+            // - Tombstones: JOIN fails (row deleted), but we still have PKs from [side]
+            // ====================================================================
 
+            sb.AppendLine(filter != null ? "SELECT DISTINCT" : "SELECT");
+
+            // Build column list with COALESCE on primary keys to handle tombstones
+            sb.Append(BuildSelectColumns("base", includeCoalesce: true));
+
+            // Return the tombstone flag from change tracking, default to 0 if NULL
+            sb.AppendLine("\t, COALESCE([side].[sync_row_is_tombstone], 0) AS [sync_row_is_tombstone]");
+
+            // Start from tracking table (smaller dataset) - performance optimization
+            sb.AppendLine($"FROM {this.SqlObjectNames.TrackingTableQuotedShortName} [side]");
+
+            // LEFT JOIN to base table - will be NULL for deleted rows (tombstones)
+            // NOLOCK hint reduces blocking (acceptable for sync scenarios with eventual consistency)
+            sb.Append($"LEFT JOIN {this.SqlObjectNames.TableQuotedFullName} [base] WITH (NOLOCK) ON ");
+
+            // Build join condition on all primary key columns
+            var joinConditions = pkColumns.Select(pk =>
+            {
+                var colName = new ObjectParser(pk.ColumnName, SqlObjectNames.LeftQuote, SqlObjectNames.RightQuote).QuotedShortName;
+                return $"[base].{colName} = [side].{colName}";
+            });
+            sb.Append(string.Join(" AND ", joinConditions));
+
+            // Apply any custom joins and WHERE clauses from the filter
+            if (filter != null)
+            {
+                // Custom joins might be needed for complex filters
+                sb.Append(this.CreateFilterCustomJoins(filter));
+
+                // Additional WHERE conditions beyond the primary key filter
+                var customWheres = this.CreateFilterCustomWheres(filter);
+                if (!string.IsNullOrEmpty(customWheres))
+                {
+                    sb.AppendLine();
+                    sb.AppendLine($"WHERE ({customWheres})");
+                }
+            }
+
+            sb.AppendLine(";");
+            
+            sqlCommand.CommandText = sb.ToString();
+            
             return sqlCommand;
         }
 
+       
+       
         /// <inheritdoc/>
         protected override SqlCommand BuildSelectIncrementalChangesCommand(SyncFilter filter)
         {
@@ -635,7 +704,8 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
             stringBuilder.AppendLine(";WITH ");
             stringBuilder.AppendLine($"  {this.SqlObjectNames.TrackingTableQuotedShortName} AS (");
             stringBuilder.Append("\tSELECT ");
-            foreach (var pkColumn in this.TableDescription.GetPrimaryKeysColumns())
+            var pkColumns = this.TableDescription.GetPrimaryKeysColumns();
+            foreach (var pkColumn in pkColumns)
             {
                 var columnParser = new ObjectParser(pkColumn.ColumnName, SqlObjectNames.LeftQuote, SqlObjectNames.RightQuote);
                 stringBuilder.Append($"[CT].{columnParser.QuotedShortName}, ");
@@ -651,6 +721,17 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
             }
 
             stringBuilder.AppendLine($"\n\tFROM CHANGETABLE(CHANGES {this.SqlObjectNames.TableQuotedFullName}, @sync_min_timestamp) AS [CT]");
+
+            if ((filter != null) && (filter.Parameters.All(x => pkColumns.Any(y => y.ColumnName == x.Name))))
+            {
+                var createFilterWhereSide = this.CreateFilterWhereSide(filter, false);
+                if (createFilterWhereSide.Contains("[base]", StringComparison.CurrentCultureIgnoreCase))
+                {
+                    createFilterWhereSide = createFilterWhereSide.Replace("[base]", "[CT]", StringComparison.CurrentCultureIgnoreCase);
+                }
+                stringBuilder.Append($" WHERE {createFilterWhereSide}");
+            }
+
             stringBuilder.AppendLine("\t)");
 
             stringBuilder.AppendLine("SELECT DISTINCT");
@@ -721,6 +802,7 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
             stringBuilder.AppendLine("\tAND ([side].[sync_update_scope_id] <> @sync_scope_id OR [side].[sync_update_scope_id] IS NULL)");
 
             stringBuilder.AppendLine(")");
+                       
             sqlCommand.CommandText = stringBuilder.ToString();
 
             return sqlCommand;
