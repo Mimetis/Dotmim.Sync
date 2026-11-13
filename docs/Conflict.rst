@@ -6,9 +6,9 @@ Overview
 
 Conflicts occurs when a client update / delete / insert a record that is updated / deleted or inserted on the server as well, *before any sync happened*.
 
-As an example, we can imagine a conflict occuring during an update on a column called ``Street`:
+As an example, we can imagine a conflict occurring during an update on a column called ``Street`:
 
-1) As a starting point, both server and client has a value of ``Street=1 Bellevue Avenue`` after an initial sync (where no conflicts occured).
+1) As a starting point, both server and client has a value of ``Street=1 Bellevue Avenue`` after an initial sync (where no conflicts occurred).
 2) Server is updating the row with a value of "*1 bis Bellevue Avenue*".
 3) Client is updating as well the same row value with "*2 Bellevue Avenue*".
 4) Sync is launched, and a conflict is raised **on the server side**.
@@ -231,7 +231,7 @@ Handling conflicts from the client side
 | But, using a **Two sync trick**, you are able to resolve the conflict from the client side.
 
 
-Basically the process is occuring in this order:
+Basically the process is occurring in this order:
 - The first sync will raise the conflict and will be resolved on the server.
 - The first sync will send back the resolved conflict to the client, containing the server row and the client row
 - From the client side, you will now be able to ask the client to choose the correct version
